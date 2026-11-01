@@ -61,7 +61,6 @@ jobs:
           projectPath: UnityPackage
           unityVersion: ${{ matrix.unityVersion }}
           testMode: EditMode
-          coverageEnabled: false
           artifactsPath: artifacts/tests
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: Unity ${{ matrix.unityVersion }} EditMode results
@@ -79,7 +78,6 @@ jobs:
           projectPath: UnityPackage
           unityVersion: ${{ matrix.unityVersion }}
           testMode: EditMode
-          coverageEnabled: false
           customParameters: -testCategory Build -buildTarget StandaloneLinux64
           artifactsPath: artifacts/builds
           githubToken: ${{ secrets.GITHUB_TOKEN }}
