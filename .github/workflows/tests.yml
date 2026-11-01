@@ -1,0 +1,91 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  unity:
+    name: Unity ${{ matrix.unityVersion }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep in sync with the minimum version in UnityPackage/package.json and the latest supported LTS releases.
+        # Unity 6.6 is verified locally instead: GameCI's package mode always adds code coverage 1.1.1,
+        # which no longer compiles on Unity 6.6.
+        unityVersion: [2021.3.45f2, 2022.3.62f3, 6000.0.85f1]
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+    steps:
+      # Secrets are unavailable to forks and to repositories that have not set them up yet; the job then
+      # passes with a notice instead of failing, so the workflow stays inert until a license is configured.
+      - name: Check Unity license
+        id: license
+        run: |
+          if [ -n "$UNITY_LICENSE" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Unity tests skipped. Add the UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD repository secrets to run them."
+          fi
+
+      # Actions and the game-ci CLI are pinned to exact versions, so the code that receives the Unity secrets
+      # changes only through a reviewed commit here.
+      - name: Checkout
+        if: steps.license.outputs.available == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Run Edit Mode tests
+        if: steps.license.outputs.available == 'true'
+        uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4.4.0
+        # A "latest" cliVersion is resolved through the GitHub API, which the action authenticates only via this
+        # variable, not the githubToken input; unauthenticated calls hit the shared runner IP rate limit (403).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          cliVersion: v0.1.72
+          packageMode: true
+          projectPath: UnityPackage
+          unityVersion: ${{ matrix.unityVersion }}
+          testMode: EditMode
+          artifactsPath: artifacts/tests
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: Unity ${{ matrix.unityVersion }} EditMode results
+
+      # The smoke tests are explicit, so only this category filter runs them. Each builds a real Linux player
+      # of an empty scene through the whole pipeline, which the runner image supports without extra modules.
+      - name: Run smoke builds
+        if: steps.license.outputs.available == 'true'
+        uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4.4.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          cliVersion: v0.1.72
+          packageMode: true
+          projectPath: UnityPackage
+          unityVersion: ${{ matrix.unityVersion }}
+          testMode: EditMode
+          customParameters: -testCategory Build -buildTarget StandaloneLinux64
+          artifactsPath: artifacts/builds
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: Unity ${{ matrix.unityVersion }} smoke build results
+
+      - name: Upload results
+        if: always() && steps.license.outputs.available == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results-${{ matrix.unityVersion }}
+          path: artifacts

@@ -2,17 +2,27 @@
   "name": "com.reromanlee.autobuildpipeline",
   "version": "1.0.0",
   "displayName": "AutoBuildPipeline",
-  "description": "",
-  "unity": "2022.3",
+  "description": "One-click release and preview builds from a Build menu for Android, WebGL and Standalone. Versions and build numbers are incremented automatically, Android builds are signed with passwords kept in the operating system's credential vault, temporary settings are restored even after a crash, and every build gets a build-info.json. A single command line entry point serves CI and understands GameCI's arguments.",
+  "unity": "2021.3",
   "license": "MIT",
   "documentationUrl": "https://github.com/reromanlee/AutoBuildPipeline#readme",
   "changelogUrl": "https://github.com/reromanlee/AutoBuildPipeline/blob/main/CHANGELOG.md",
-  "keywords": [],
+  "keywords": [
+    "build",
+    "automation",
+    "release",
+    "versioning",
+    "android",
+    "webgl",
+    "standalone",
+    "keystore",
+    "ci",
+    "gameci"
+  ],
   "licensesUrl": "https://github.com/reromanlee/AutoBuildPipeline/blob/main/LICENSE.md",
   "author": {
     "name": "Roman Likhadievski",
     "url": "https://github.com/reromanlee",
     "email": "contact@reromanlee.com"
-  },
-  "samples": []
+  }
 }
