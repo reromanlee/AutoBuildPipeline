@@ -13,7 +13,7 @@
 9. `CommandLineBuild.Run` entry point for batch mode and CI with `-buildType`, output, version and build number overrides, GameCI's arguments, GitHub Actions step outputs and a non-zero exit code on failure.
 10. Project Settings ▸ Auto Build Pipeline page for the output folder, preview label, release confirmation, revealing builds and the Android release format, previewing where the next release and preview go.
 11. `AutoBuilder.Build` and `BuildRequest` for running the same pipeline from your own editor scripts.
-12. Edit Mode tests, explicit smoke builds of real players, and a GameCI workflow on Unity 2021.3, 2022.3, 6000.0 and 6000.6.
+12. Edit Mode tests, explicit smoke builds of real players, and a GameCI workflow on Unity 2021.3, 2022.3 and 6000.0.
 13. Unity 2021.3 LTS, 2022.3 LTS and Unity 6 support.
 
 ### Known issues
