@@ -21,8 +21,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Keep in sync with the minimum version in UnityPackage/package.json and the latest supported releases.
-        unityVersion: [2021.3.45f2, 2022.3.62f3, 6000.0.85f1, 6000.6.7f1]
+        # Keep in sync with the minimum version in UnityPackage/package.json and the latest supported LTS releases.
+        # Unity 6.6 is verified locally instead: GameCI's package mode always adds code coverage 1.1.1,
+        # which no longer compiles on Unity 6.6.
+        unityVersion: [2021.3.45f2, 2022.3.62f3, 6000.0.85f1]
     env:
       UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
       UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -59,6 +61,7 @@ jobs:
           projectPath: UnityPackage
           unityVersion: ${{ matrix.unityVersion }}
           testMode: EditMode
+          coverageEnabled: false
           artifactsPath: artifacts/tests
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: Unity ${{ matrix.unityVersion }} EditMode results
@@ -76,6 +79,7 @@ jobs:
           projectPath: UnityPackage
           unityVersion: ${{ matrix.unityVersion }}
           testMode: EditMode
+          coverageEnabled: false
           customParameters: -testCategory Build -buildTarget StandaloneLinux64
           artifactsPath: artifacts/builds
           githubToken: ${{ secrets.GITHUB_TOKEN }}
