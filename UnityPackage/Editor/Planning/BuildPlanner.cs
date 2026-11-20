@@ -35,6 +35,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
                 HasBuildNumber = hasBuildNumber,
                 BuildNumber = hasBuildNumber ? ResolveBuildNumber(platform, request, inputs.CurrentBuildNumber, overrides.BuildNumber) : 0,
                 IsDevelopment = !request.IsRelease && inputs.IsDevelopmentEnabled,
+                AndroidReleaseSymbols = inputs.AndroidReleaseSymbols,
                 Commit = inputs.Commit,
                 ProductName = inputs.ProductName,
                 ApplicationIdentifier = inputs.ApplicationIdentifier

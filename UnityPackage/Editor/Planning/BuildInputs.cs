@@ -30,6 +30,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
 
         public string PreviewLabel;
         public AndroidReleaseFormat AndroidReleaseFormat;
+        public AndroidDebugSymbols AndroidReleaseSymbols;
 
         /// <summary>
         /// Whether Development Build is checked for the active platform.
@@ -70,6 +71,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
                 OutputFolder = settings.OutputFolder,
                 PreviewLabel = settings.PreviewLabel,
                 AndroidReleaseFormat = settings.AndroidReleaseFormat,
+                AndroidReleaseSymbols = settings.AndroidReleaseSymbols,
                 IsDevelopmentEnabled = EditorUserBuildSettings.development,
                 Timestamp = DateTime.Now,
                 Commit = commit

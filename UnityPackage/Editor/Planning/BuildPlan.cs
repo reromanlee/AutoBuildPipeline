@@ -40,6 +40,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
 
         public bool IsDevelopment;
         public bool IsAppBundle;
+        public AndroidDebugSymbols AndroidReleaseSymbols;
 
         /// <summary>
         /// Folder the package owns for this build, which is replaced as a whole, or null for an exact player location.

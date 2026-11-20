@@ -21,6 +21,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
         private static readonly GUIContent ReleaseConfirmationLabel = new("Confirm Releases", "Asks before a release started from the editor, showing the version change.");
         private static readonly GUIContent BuildRevealLabel = new("Show Builds After Building", "Opens the build in Explorer or Finder after a build that is not launched.");
         private static readonly GUIContent AndroidReleaseFormatLabel = new("Android Release Format", "App Bundles are required by Google Play; APKs suit other stores and direct installs. Previews are always APKs.");
+        private static readonly GUIContent AndroidReleaseSymbolsLabel = new("Android Release Symbols", "Generates native debug symbols (e.g. symbols.zip) for Android releases and restores the editor setting afterwards. Previews leave the editor setting unchanged.");
 
         // The next build paths are planned once per layout pass rather than on every repaint.
         private static string _nextReleaseText;
@@ -33,7 +34,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
             return new SettingsProvider(SettingsPath, SettingsScope.Project)
             {
                 label = "Auto Build Pipeline",
-                keywords = new HashSet<string> { "Build", "Release", "Preview", "Version", "Output", "Android", "App Bundle", "Keystore" },
+                keywords = new HashSet<string> { "Build", "Release", "Preview", "Version", "Output", "Android", "App Bundle", "Keystore", "Symbols", "Debug Symbols" },
                 guiHandler = DrawSettings
             };
         }
@@ -142,6 +143,12 @@ namespace reromanlee.AutoBuildPipeline.Editor
             if (format != settings.AndroidReleaseFormat)
             {
                 settings.SetAndroidReleaseFormat(format);
+            }
+
+            AndroidDebugSymbols symbols = (AndroidDebugSymbols)EditorGUILayout.EnumPopup(AndroidReleaseSymbolsLabel, settings.AndroidReleaseSymbols);
+            if (symbols != settings.AndroidReleaseSymbols)
+            {
+                settings.SetAndroidReleaseSymbols(symbols);
             }
         }
 

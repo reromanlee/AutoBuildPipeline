@@ -31,6 +31,9 @@ namespace reromanlee.AutoBuildPipeline.Editor
         [SerializeField]
         private AndroidReleaseFormat _androidReleaseFormat = AndroidReleaseFormat.AppBundle;
 
+        [SerializeField]
+        private AndroidDebugSymbols _androidReleaseSymbols = AndroidDebugSymbols.Public;
+
         /// <summary>
         /// Root folder of all builds; each platform gets a subfolder, e.g. <c>Builds/Android</c>.
         /// Relative paths start at the project folder. Returns <see cref="DefaultOutputFolder"/> when blank.
@@ -89,6 +92,17 @@ namespace reromanlee.AutoBuildPipeline.Editor
             }
         }
 
+        /// <summary>
+        /// Native debug symbols level applied during Android release builds and restored afterwards.
+        /// </summary>
+        public AndroidDebugSymbols AndroidReleaseSymbols
+        {
+            get
+            {
+                return _androidReleaseSymbols;
+            }
+        }
+
         internal void SetOutputFolder(string outputFolder)
         {
             _outputFolder = outputFolder;
@@ -116,6 +130,12 @@ namespace reromanlee.AutoBuildPipeline.Editor
         internal void SetAndroidReleaseFormat(AndroidReleaseFormat format)
         {
             _androidReleaseFormat = format;
+            Save(true);
+        }
+
+        internal void SetAndroidReleaseSymbols(AndroidDebugSymbols symbols)
+        {
+            _androidReleaseSymbols = symbols;
             Save(true);
         }
     }
