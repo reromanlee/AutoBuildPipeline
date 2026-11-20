@@ -35,6 +35,25 @@ namespace reromanlee.AutoBuildPipeline.Editor
 #endif
 
         /// <summary>
+        /// Details of the automated build currently in progress, or null when no build started by
+        /// <see cref="AutoBuilder"/> is running. Safe to inspect from <c>IPreprocessBuildWithReport</c>
+        /// and <c>IPostprocessBuildWithReport</c> callbacks; always cleared when the build ends or fails.
+        /// </summary>
+        public static BuildContext CurrentBuild { get; private set; }
+
+        /// <summary>
+        /// Request of the automated build currently in progress, or null when idle.
+        /// Shortcut for <c>CurrentBuild?.Request</c>.
+        /// </summary>
+        public static BuildRequest? CurrentRequest
+        {
+            get
+            {
+                return CurrentBuild?.Request;
+            }
+        }
+
+        /// <summary>
         /// Versions, signs and builds the active platform. Every setting the build changes is restored afterwards,
         /// except the new version of a successful release, which is saved.
         /// </summary>
@@ -70,6 +89,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
             bool isSucceeded = false;
             try
             {
+                CurrentBuild = new BuildContext(plan, isUnattended);
                 CreateParentFolder(plan.PlayerLocation);
                 if (!platform.TryPrepare(plan, overrides))
                 {
@@ -90,6 +110,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
             }
             finally
             {
+                CurrentBuild = null;
                 restorePoint.Restore(isVersionKept: isSucceeded && request.IsRelease);
                 AssetDatabase.SaveAssets();
                 backup.Complete(isSucceeded);
