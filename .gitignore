@@ -24,3 +24,15 @@
 ## IDE - Rider
 .idea/
 *.sln.iml
+
+## Unity test project generated files
+/UnityProject/Assets/
+/UnityProject/Builds/
+/UnityProject/Library/
+/UnityProject/Logs/
+/UnityProject/MemoryCaptures/
+/UnityProject/Obj/
+/UnityProject/Packages/packages-lock.json
+/UnityProject/ProjectSettings/
+/UnityProject/Temp/
+/UnityProject/UserSettings/
