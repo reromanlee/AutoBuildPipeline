@@ -34,4 +34,12 @@ They need the Standalone platform of your operating system to be active, change 
 
 ### Continuous integration
 
-`.github/workflows/tests.yml` runs the Edit Mode tests and the smoke builds with [GameCI](https://game.ci) on Unity 2021.3, 2022.3 and 6000.0 for every push to `main` and every pull request; on the Linux runners, the smoke builds produce Linux players. Newer Unity 6 releases are tested locally, because GameCI's package mode always adds code coverage 1.1.1 to its test project, and that version no longer compiles on Unity 6.6. It needs the `UNITY_LICENSE`, `UNITY_EMAIL` and `UNITY_PASSWORD` repository secrets; without them the job passes with a notice instead of failing, so forks stay green.
+Three workflows in `.github/workflows` verify the package across Unity `2021.3.45f2`, `2022.3.62f3`, `6000.0.85f1` and `6000.6.7f1` using the minimal `UnityProject/` test harness (which references `UnityPackage` directly in `testables` instead of GameCI's package mode) and sweep stale caches and artifacts:
+
+| Workflow | File | Automatic triggers | Manual trigger | Notes |
+| --- | --- | --- | --- | --- |
+| `Continuous integration` | `continuous-integration.yml` | Pull requests and pushes to `main` (ignoring `**.md` and images) | `workflow_dispatch` | Tree-SHA gate skips `main` re-runs when the exact file tree already passed in a pull request; records a 7-day `passed-files-<tree>` marker. |
+| `Tests` | `tests.yml` | Called by `continuous-integration.yml` (`workflow_call`) | — | Runs Edit Mode tests and Linux smoke builds across all 4 Unity versions (`ubuntu-latest`, 60 min timeout), verifies both NUnit XML reports strictly, writes pass/fail tables to `$GITHUB_STEP_SUMMARY`, fails on `warning CS` in package sources, caches `UnityProject/Library` and uploads `test-results-*` for 7 days on failure. |
+| `Cleanup` | `cleanup.yml` | Nightly at `04:00 UTC` | `workflow_dispatch` (`olderThanHours`, default `24`) | Aborts untouched whenever another workflow run is active; sweeps caches/artifacts from deleted branches or older than the threshold while keeping active 7-day `passed-files-*` and `test-results-*` artifacts. |
+
+The Unity jobs require the `UNITY_LICENSE`, `UNITY_EMAIL` and `UNITY_PASSWORD` repository secrets; without them the jobs pass with a notice so forks stay green. Omitting `githubToken` and `checkName` from `game-ci/unity-test-runner` eliminates GameCI's neutral Check Runs so each Unity version reports a single passing or failing check.

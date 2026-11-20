@@ -1,6 +1,6 @@
 ### Android signing
 
-Android releases must be signed with your own keystore, because Google Play and every other store identify an app by its signing key. Previews may use Unity's debug keystore.
+Google Play and other stores require Android releases to be signed with your own keystore. When **Custom Keystore** is enabled in Player Settings (or passed via `-androidKeystoreName`), AutoBuildPipeline validates the keystore and supplies its passwords automatically. When **Custom Keystore** is disabled, both `.apk` and `.aab` releases still build using Unity's debug keystore and log a warning (with an unsigned notice in the interactive confirmation dialog), because Google Play rejects debug-signed App Bundles. Previews build with the debug keystore silently unless Custom Keystore is enabled.
 
 ### Setting up the keystore
 
