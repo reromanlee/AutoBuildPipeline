@@ -11,12 +11,18 @@ namespace reromanlee.AutoBuildPipeline.Editor
     internal static class BuildMenu
     {
         private const string MenuRoot = "Build/";
+        private const string SwitchPlatformRoot = MenuRoot + "Switch Platform/";
         private const string PatchReleaseItem = MenuRoot + "Patch Release";
         private const string MinorReleaseItem = MenuRoot + "Minor Release";
         private const string MajorReleaseItem = MenuRoot + "Major Release";
         private const string ExactReleaseItem = MenuRoot + "Exact Release";
         private const string PreviewAndRunItem = MenuRoot + "Preview and Run";
         private const string PreviewItem = MenuRoot + "Preview";
+        private const string SwitchAndroidItem = SwitchPlatformRoot + "Android";
+        private const string SwitchWebGLItem = SwitchPlatformRoot + "WebGL";
+        private const string SwitchWindowsItem = SwitchPlatformRoot + "Windows";
+        private const string SwitchMacItem = SwitchPlatformRoot + "macOS";
+        private const string SwitchLinuxItem = SwitchPlatformRoot + "Linux";
         private const string OpenBuildsFolderItem = MenuRoot + "Open Builds Folder";
         private const string KeystorePasswordsItem = MenuRoot + "Keystore Passwords...";
         private const string ForgetKeystorePasswordsItem = MenuRoot + "Forget Keystore Passwords";
@@ -25,7 +31,8 @@ namespace reromanlee.AutoBuildPipeline.Editor
         // Unity draws a separator between items whose priorities differ by more than ten.
         private const int ReleasePriority = 0;
         private const int PreviewPriority = 20;
-        private const int ToolsPriority = 40;
+        private const int SwitchPlatformPriority = 40;
+        private const int ToolsPriority = 60;
 
         [MenuItem(PatchReleaseItem, priority = ReleasePriority)]
         private static void BuildPatchRelease()
@@ -75,6 +82,66 @@ namespace reromanlee.AutoBuildPipeline.Editor
                    !EditorApplication.isCompiling &&
                    !EditorApplication.isPlayingOrWillChangePlaymode &&
                    BuildPlatforms.IsSupported(EditorUserBuildSettings.activeBuildTarget);
+        }
+
+        [MenuItem(SwitchAndroidItem, priority = SwitchPlatformPriority)]
+        private static void SwitchToAndroid()
+        {
+            SwitchPlatform(BuildTarget.Android, "Android");
+        }
+
+        [MenuItem(SwitchAndroidItem, true)]
+        private static bool CanSwitchToAndroid()
+        {
+            return CanSwitchPlatform(SwitchAndroidItem, BuildTarget.Android);
+        }
+
+        [MenuItem(SwitchWebGLItem, priority = SwitchPlatformPriority + 1)]
+        private static void SwitchToWebGL()
+        {
+            SwitchPlatform(BuildTarget.WebGL, "WebGL");
+        }
+
+        [MenuItem(SwitchWebGLItem, true)]
+        private static bool CanSwitchToWebGL()
+        {
+            return CanSwitchPlatform(SwitchWebGLItem, BuildTarget.WebGL);
+        }
+
+        [MenuItem(SwitchWindowsItem, priority = SwitchPlatformPriority + 2)]
+        private static void SwitchToWindows()
+        {
+            SwitchPlatform(BuildTarget.StandaloneWindows64, "Windows");
+        }
+
+        [MenuItem(SwitchWindowsItem, true)]
+        private static bool CanSwitchToWindows()
+        {
+            return CanSwitchPlatform(SwitchWindowsItem, BuildTarget.StandaloneWindows64);
+        }
+
+        [MenuItem(SwitchMacItem, priority = SwitchPlatformPriority + 3)]
+        private static void SwitchToMac()
+        {
+            SwitchPlatform(BuildTarget.StandaloneOSX, "macOS");
+        }
+
+        [MenuItem(SwitchMacItem, true)]
+        private static bool CanSwitchToMac()
+        {
+            return CanSwitchPlatform(SwitchMacItem, BuildTarget.StandaloneOSX);
+        }
+
+        [MenuItem(SwitchLinuxItem, priority = SwitchPlatformPriority + 4)]
+        private static void SwitchToLinux()
+        {
+            SwitchPlatform(BuildTarget.StandaloneLinux64, "Linux");
+        }
+
+        [MenuItem(SwitchLinuxItem, true)]
+        private static bool CanSwitchToLinux()
+        {
+            return CanSwitchPlatform(SwitchLinuxItem, BuildTarget.StandaloneLinux64);
         }
 
         [MenuItem(OpenBuildsFolderItem, priority = ToolsPriority)]
@@ -152,6 +219,48 @@ namespace reromanlee.AutoBuildPipeline.Editor
             catch (BuildFailedException exception)
             {
                 BuildLog.Error(exception.Message);
+            }
+        }
+
+        private static bool CanSwitchPlatform(string itemPath, BuildTarget target)
+        {
+            bool isActive = EditorUserBuildSettings.activeBuildTarget == target;
+            Menu.SetChecked(itemPath, isActive);
+            if (isActive || BuildPipeline.isBuildingPlayer || EditorApplication.isCompiling || EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                return false;
+            }
+
+            return BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target);
+        }
+
+        private static void SwitchPlatform(BuildTarget target, string displayName)
+        {
+            if (EditorUserBuildSettings.activeBuildTarget == target)
+            {
+                return;
+            }
+
+            BuildTargetGroup targetGroup = BuildPipeline.GetBuildTargetGroup(target);
+            if (!BuildPipeline.IsBuildTargetSupported(targetGroup, target))
+            {
+                BuildLog.Error($"Cannot switch to {displayName}: the {displayName} Build Support module is not installed in this Unity Editor.");
+                return;
+            }
+
+            string currentName = BuildPlatforms.TryGet(EditorUserBuildSettings.activeBuildTarget, out BuildPlatform currentPlatform)
+                ? currentPlatform.DisplayName
+                : EditorUserBuildSettings.activeBuildTarget.ToString();
+
+            string message = $"Switch active platform from {currentName} to {displayName}?\n\nUnity will reimport assets for the new platform, which may take a while.";
+            if (!EditorUtility.DisplayDialog("Auto Build Pipeline", message, "Switch", "Cancel"))
+            {
+                return;
+            }
+
+            if (!EditorUserBuildSettings.SwitchActiveBuildTargetAsync(targetGroup, target))
+            {
+                BuildLog.Error($"Could not switch active platform to {displayName}.");
             }
         }
     }
