@@ -92,10 +92,10 @@ namespace reromanlee.AutoBuildPipeline.Editor
         }
 
         /// <inheritdoc/>
-        /// <remarks>The package is named like its folder, e.g. <c>com.company.app-1.6.1-7/com.company.app-1.6.1-7.aab</c>.</remarks>
-        public override string GetPlayerPath(string buildFolder, string buildName, string nameBase, bool isAppBundle)
+        /// <remarks>The package defaults to its folder name, e.g. <c>com.company.app-1.6.1-7/com.company.app-1.6.1-7.aab</c>.</remarks>
+        public override string GetPlayerPath(string buildFolder, string buildName, string nameBase, string playerName, bool isAppBundle)
         {
-            return Path.Combine(buildFolder, buildName + (isAppBundle ? AppBundleExtension : PackageExtension));
+            return Path.Combine(buildFolder, (playerName ?? buildName) + (isAppBundle ? AppBundleExtension : PackageExtension));
         }
 
         /// <inheritdoc/>

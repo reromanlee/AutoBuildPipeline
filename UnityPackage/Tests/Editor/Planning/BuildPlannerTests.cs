@@ -256,6 +256,77 @@ namespace reromanlee.AutoBuildPipeline.Editor.Tests
             Assert.That(plan.PlayerLocation, Is.EqualTo(Path.GetFullPath(Path.Combine(ProjectFolder, playerLocation))));
         }
 
+        // Configurable folder and file name patterns.
+
+        [Test]
+        public void CustomReleaseFolderAndPlayerNamePatternsApplyToAndroid()
+        {
+            BuildInputs inputs = CreateInputs();
+            inputs.ReleaseFolderPattern = "{platform}_{product}_{version}_{code}_{date}";
+            inputs.PlayerNamePattern = "{product}-{version}-b{code}";
+
+            BuildPlan plan = Plan(BuildTarget.Android, BuildRequest.PatchRelease, inputs: inputs);
+
+            Assert.That(plan.BuildFolder, Is.EqualTo(ExpectedPath("Builds", "Android", "Android_My Game_1.6.4_8_2026-11-01")));
+            Assert.That(plan.PlayerLocation, Is.EqualTo(ExpectedPath("Builds", "Android", "Android_My Game_1.6.4_8_2026-11-01", "My Game-1.6.4-b8.aab")));
+        }
+
+        [Test]
+        public void CustomPlayerNamePatternAppliesToStandaloneAndWebGL()
+        {
+            BuildInputs inputs = CreateInputs();
+            inputs.ReleaseFolderPattern = "{product}-{version}-{date}-{time}";
+            inputs.PlayerNamePattern = "{product}_{platform}_{version}";
+
+            BuildPlan windows = Plan(BuildTarget.StandaloneWindows64, BuildRequest.PatchRelease, inputs: inputs);
+            BuildPlan webgl = Plan(BuildTarget.WebGL, BuildRequest.PatchRelease, inputs: inputs);
+
+            Assert.That(windows.PlayerLocation, Is.EqualTo(ExpectedPath("Builds", "Windows", "My Game-1.6.4-2026-11-01-1432", "My Game_Windows_1.6.4.exe")));
+            Assert.That(webgl.PlayerLocation, Is.EqualTo(ExpectedPath("Builds", "WebGL", "My Game-1.6.4-2026-11-01-1432", "My Game_WebGL_1.6.4")));
+        }
+
+        [Test]
+        public void CustomPreviewFolderPatternApplies()
+        {
+            BuildInputs inputs = CreateInputs();
+            inputs.PreviewFolderPattern = "{platform}-{name}-{label}-{date}";
+
+            BuildPlan plan = Plan(BuildTarget.StandaloneWindows64, BuildRequest.Preview, inputs: inputs);
+
+            Assert.That(plan.BuildFolder, Is.EqualTo(ExpectedPath("Builds", "Windows", "Windows-My Game-dev-2026-11-01")));
+        }
+
+        [Test]
+        public void PreviewFolderCollidingWithReleaseFolderFails()
+        {
+            BuildInputs inputs = CreateInputs();
+            inputs.PreviewLabel = "1.6.4";
+            inputs.ReleaseFolderPattern = "{name}-{version}";
+            inputs.PreviewFolderPattern = "{name}-{label}";
+
+            Assert.Throws<BuildFailedException>(() => Plan(BuildTarget.StandaloneWindows64, BuildRequest.Preview, inputs: inputs));
+        }
+
+        [Test]
+        public void InvalidReleaseFolderPatternFailsReleaseOnly()
+        {
+            BuildInputs inputs = CreateInputs();
+            inputs.ReleaseFolderPattern = "{name}-{date}";
+
+            Assert.Throws<BuildFailedException>(() => Plan(BuildTarget.WebGL, BuildRequest.PatchRelease, inputs: inputs));
+            Assert.DoesNotThrow(() => Plan(BuildTarget.WebGL, BuildRequest.Preview, inputs: inputs));
+        }
+
+        [Test]
+        public void InvalidPreviewFolderPatternFailsPreviewOnly()
+        {
+            BuildInputs inputs = CreateInputs();
+            inputs.PreviewFolderPattern = "{name}-{version}";
+
+            Assert.Throws<BuildFailedException>(() => Plan(BuildTarget.WebGL, BuildRequest.Preview, inputs: inputs));
+            Assert.DoesNotThrow(() => Plan(BuildTarget.WebGL, BuildRequest.PatchRelease, inputs: inputs));
+        }
+
         private static BuildPlan Plan(BuildTarget target, BuildRequest request, BuildOverrides overrides = null, BuildInputs inputs = null)
         {
             Assert.That(BuildPlatforms.TryGet(target, out BuildPlatform platform), Is.True);

@@ -138,26 +138,85 @@ namespace reromanlee.AutoBuildPipeline.Editor
             }
 
             string nameBase = platform.GetNameBase(inputs.ProductName, inputs.ApplicationIdentifier);
+            BuildNamePattern.Tokens tokens = new(
+                name: nameBase,
+                product: inputs.ProductName,
+                identifier: inputs.ApplicationIdentifier,
+                version: plan.Version.ToString(),
+                code: plan.HasBuildNumber ? plan.BuildNumber.ToString(CultureInfo.InvariantCulture) : string.Empty,
+                platform: platform.FolderName,
+                label: previewLabel ?? string.Empty,
+                timestamp: inputs.Timestamp);
+
             string buildName;
-            if (!plan.Request.IsRelease)
+            if (plan.Request.IsRelease)
             {
-                // Previews reuse one folder, so they never pile up on disk.
-                buildName = $"{nameBase}-{previewLabel}";
-            }
-            else if (plan.HasBuildNumber)
-            {
-                buildName = string.Format(CultureInfo.InvariantCulture, "{0}-{1}-{2}", nameBase, plan.Version, plan.BuildNumber);
+                buildName = BuildNamePattern.FormatReleaseFolder(inputs.ReleaseFolderPattern, tokens);
             }
             else
             {
-                buildName = $"{nameBase}-{plan.Version}";
+                // Previews reuse a labeled folder and must never collide with a release folder.
+                buildName = BuildNamePattern.FormatPreviewFolder(inputs.PreviewFolderPattern, tokens);
+                EnsurePreviewDoesNotCollideWithRelease(buildName, inputs, platform, nameBase, plan);
             }
 
+            string playerName = BuildNamePattern.FormatPlayerName(inputs.PlayerNamePattern, tokens);
             string outputFolder = IsSet(overrides.OutputFolder) ? overrides.OutputFolder.Trim() : inputs.OutputFolder;
             string platformFolder = Path.Combine(ProjectPaths.ToAbsolute(inputs.ProjectFolder, outputFolder), platform.FolderName);
             plan.IsAppBundle = isReleaseAppBundle;
             plan.BuildFolder = Path.Combine(platformFolder, buildName);
-            plan.PlayerLocation = platform.GetPlayerPath(plan.BuildFolder, buildName, nameBase, plan.IsAppBundle);
+            plan.PlayerLocation = platform.GetPlayerPath(plan.BuildFolder, buildName, nameBase, playerName, plan.IsAppBundle);
+        }
+
+        private static void EnsurePreviewDoesNotCollideWithRelease(string previewFolder, BuildInputs inputs, BuildPlatform platform, string nameBase, BuildPlan plan)
+        {
+            string releasePattern = string.IsNullOrWhiteSpace(inputs.ReleaseFolderPattern)
+                ? BuildNamePattern.DefaultReleaseFolderPattern
+                : inputs.ReleaseFolderPattern.Trim();
+
+            if (!BuildNamePattern.TryValidate(releasePattern, "Release Folder Pattern", "version", out _))
+            {
+                return;
+            }
+
+            string[] candidateVersions = { plan.Version.ToString(), inputs.CurrentVersion ?? string.Empty };
+            string currentCode = platform.HasBuildNumber ? (inputs.CurrentBuildNumber?.Trim() ?? string.Empty) : string.Empty;
+            string nextCode = string.Empty;
+            if (platform.HasBuildNumber && TryParseBuildNumber(string.IsNullOrWhiteSpace(currentCode) ? "0" : currentCode, out int parsedCode))
+            {
+                nextCode = (parsedCode + 1L).ToString(CultureInfo.InvariantCulture);
+            }
+
+            string[] candidateCodes = platform.HasBuildNumber
+                ? new[] { string.Empty, currentCode, nextCode }
+                : new[] { string.Empty };
+
+            foreach (string version in candidateVersions)
+            {
+                if (string.IsNullOrWhiteSpace(version))
+                {
+                    continue;
+                }
+
+                foreach (string code in candidateCodes)
+                {
+                    BuildNamePattern.Tokens releaseTokens = new(
+                        name: nameBase,
+                        product: inputs.ProductName,
+                        identifier: inputs.ApplicationIdentifier,
+                        version: version,
+                        code: code,
+                        platform: platform.FolderName,
+                        label: string.Empty,
+                        timestamp: inputs.Timestamp);
+
+                    string releaseFolder = BuildNamePattern.FormatReleaseFolder(releasePattern, releaseTokens);
+                    if (string.Equals(previewFolder, releaseFolder, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new BuildFailedException($"The preview folder '{previewFolder}' matches a release folder. Change the Preview Label or folder patterns in Project Settings ▸ Auto Build Pipeline.");
+                    }
+                }
+            }
         }
 
         private static bool TryParseBuildNumber(string text, out int buildNumber)

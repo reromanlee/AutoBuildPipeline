@@ -17,9 +17,9 @@ namespace reromanlee.AutoBuildPipeline.Editor
         }
 
         /// <inheritdoc/>
-        public override string GetPlayerPath(string buildFolder, string buildName, string nameBase, bool isAppBundle)
+        public override string GetPlayerPath(string buildFolder, string buildName, string nameBase, string playerName, bool isAppBundle)
         {
-            return GetPlayerFilePath(buildFolder, nameBase, _extension);
+            return GetPlayerFilePath(buildFolder, playerName ?? nameBase, _extension);
         }
     }
 }
