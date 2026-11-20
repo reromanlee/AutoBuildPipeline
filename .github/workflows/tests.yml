@@ -61,8 +61,8 @@ jobs:
           key: Library-tests-${{ matrix.unityVersion }}-${{ hashFiles('UnityPackage/**', 'UnityProject/Packages/**') }}
           restore-keys: Library-tests-${{ matrix.unityVersion }}-
 
-      # Omitting githubToken and checkName avoids GameCI's hard-coded neutral Check Runs.
-      # The XML verifier step below parses both NUnit reports and enforces a non-zero exit on any failure.
+      # Setting githubToken to empty overrides the action's default and avoids GameCI's hard-coded neutral Check Runs.
+      # The action fails on non-zero Unity exit codes, and the XML verifier step below also validates both NUnit reports.
       - name: Run Edit Mode tests
         if: steps.license.outputs.available == 'true'
         uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4.4.0
@@ -75,6 +75,7 @@ jobs:
           unityVersion: ${{ matrix.unityVersion }}
           testMode: EditMode
           artifactsPath: artifacts/tests
+          githubToken: ''
 
       # The smoke tests are explicit, so only this category filter runs them. Each builds a real Linux player
       # of an empty scene through the whole pipeline, which the runner image supports without extra modules.
@@ -91,6 +92,7 @@ jobs:
           testMode: EditMode
           customParameters: -testCategory Build -buildTarget StandaloneLinux64
           artifactsPath: artifacts/builds
+          githubToken: ''
 
       - name: Verify test results and write summary
         if: always() && steps.license.outputs.available == 'true'
@@ -148,7 +150,7 @@ jobs:
                   total_skipped += skipped
                   total_duration += duration
 
-                  if result != "Passed" or failed > 0 or inconclusive > 0 or passed == 0:
+                  if not result.startswith("Passed") or failed > 0 or inconclusive > 0 or passed == 0:
                       suite_ok = False
 
                   for case in root.iter("test-case"):
