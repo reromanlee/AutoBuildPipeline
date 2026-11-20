@@ -53,7 +53,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
             bool isUnattended = overrides.IsUnattended || Application.isBatchMode;
             BuildPlan plan = BuildPlanner.Create(platform, request, overrides, BuildInputs.Capture(platform));
 
-            if (!isUnattended && request.IsRelease && AutoBuildPipelineSettings.instance.IsReleaseConfirmationEnabled && !ConfirmRelease(plan))
+            if (!isUnattended && request.IsRelease && AutoBuildPipelineSettings.instance.IsReleaseConfirmationEnabled && !ConfirmRelease(plan, overrides))
             {
                 return null;
             }
@@ -139,11 +139,21 @@ namespace reromanlee.AutoBuildPipeline.Editor
             return platform;
         }
 
-        private static bool ConfirmRelease(BuildPlan plan)
+        private static bool ConfirmRelease(BuildPlan plan, BuildOverrides overrides)
         {
             string message = plan.Request.VersionIncrement == VersionIncrement.None
                 ? $"{plan.Platform.DisplayName} release {plan.DisplayVersion}?\n\nThe version stays unchanged."
                 : $"{plan.Platform.DisplayName} release {plan.DisplayCurrentVersion} → {plan.DisplayVersion}?\n\nThe new version is saved when the build succeeds.";
+
+            bool isUnsignedAndroid = plan.Platform is AndroidPlatform &&
+                                     !PlayerSettings.Android.useCustomKeystore &&
+                                     string.IsNullOrWhiteSpace(overrides.KeystorePath);
+            if (isUnsignedAndroid)
+            {
+                message += plan.IsAppBundle
+                    ? "\n\nUnsigned (debug keystore). Google Play rejects debug-signed App Bundles."
+                    : "\n\nUnsigned (debug keystore).";
+            }
 
             return EditorUtility.DisplayDialog("Auto Build Pipeline", message, "Build", "Cancel");
         }

@@ -14,7 +14,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
 
         /// <summary>
         /// Release builds save the new version, increment the build number with the version, are never development builds,
-        /// and on Android must be signed with a custom keystore. Previews leave the project untouched.
+        /// and on Android sign with the custom keystore when enabled. Previews leave the project untouched.
         /// </summary>
         public readonly bool IsRelease;
 

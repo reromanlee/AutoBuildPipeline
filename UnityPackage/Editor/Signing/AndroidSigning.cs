@@ -26,13 +26,16 @@ namespace reromanlee.AutoBuildPipeline.Editor
         private const string DedicatedLocationRootPreference = "AndroidKeystoresDedicatedLocationRoot";
 
         /// <summary>
-        /// Makes sure Player Settings hold an absolute keystore path and the passwords for the upcoming build.
-        /// Must run inside a restore point, because the keystore path and overrides change Player Settings.
+        /// Makes sure Player Settings hold an absolute keystore path and the passwords for the upcoming build
+        /// when custom keystore signing is enabled. When disabled, builds proceed with Unity's debug keystore
+        /// and releases log a warning. Must run inside a restore point, because the keystore path and overrides
+        /// change Player Settings.
         /// </summary>
-        /// <param name="isRelease">Release builds fail when the debug keystore is used.</param>
+        /// <param name="isRelease">Whether this is a release build (logs a warning when unsigned).</param>
+        /// <param name="isAppBundle">Whether an Android App Bundle (.aab) is being built.</param>
         /// <returns>False when the user cancelled the password prompt.</returns>
-        /// <exception cref="BuildFailedException">The keystore or its passwords are missing.</exception>
-        public static bool TryPrepare(bool isRelease, BuildOverrides overrides)
+        /// <exception cref="BuildFailedException">Custom keystore is enabled, but the keystore or its passwords are missing.</exception>
+        public static bool TryPrepare(bool isRelease, bool isAppBundle, BuildOverrides overrides)
         {
             if (!string.IsNullOrWhiteSpace(overrides.KeystorePath))
             {
@@ -49,7 +52,14 @@ namespace reromanlee.AutoBuildPipeline.Editor
             {
                 if (isRelease)
                 {
-                    throw new BuildFailedException("Android releases must be signed with a custom keystore. Enable it in Player Settings ▸ Publishing Settings.");
+                    if (isAppBundle)
+                    {
+                        BuildLog.Warning("Building Android App Bundle release without a custom keystore (using Unity's debug keystore). Google Play rejects debug-signed bundles; enable Custom Keystore in Player Settings ▸ Publishing Settings before uploading.");
+                    }
+                    else
+                    {
+                        BuildLog.Warning("Building Android APK release without a custom keystore (using Unity's debug keystore). Enable Custom Keystore in Player Settings ▸ Publishing Settings to sign for distribution.");
+                    }
                 }
 
                 return true;

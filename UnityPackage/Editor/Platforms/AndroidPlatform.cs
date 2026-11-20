@@ -114,7 +114,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
             // An exported Gradle project would replace the package the plan promises.
             EditorUserBuildSettings.exportAsGoogleAndroidProject = false;
             EditorUserBuildSettings.buildAppBundle = plan.IsAppBundle;
-            return AndroidSigning.TryPrepare(plan.Request.IsRelease, overrides);
+            return AndroidSigning.TryPrepare(plan.Request.IsRelease, plan.IsAppBundle, overrides);
         }
 
         /// <inheritdoc/>
