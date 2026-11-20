@@ -61,6 +61,10 @@ jobs:
           key: Library-tests-${{ matrix.unityVersion }}-${{ hashFiles('UnityPackage/**', 'UnityProject/Packages/**') }}
           restore-keys: Library-tests-${{ matrix.unityVersion }}-
 
+      - name: Clear stale Unity DataStore
+        if: steps.license.outputs.available == 'true'
+        run: rm -rf UnityProject/Library/DataStore
+
       # Setting githubToken to empty overrides the action's default and avoids GameCI's hard-coded neutral Check Runs.
       # The action fails on non-zero Unity exit codes, and the XML verifier step below also validates both NUnit reports.
       - name: Run Edit Mode tests
@@ -74,8 +78,14 @@ jobs:
           projectPath: UnityProject
           unityVersion: ${{ matrix.unityVersion }}
           testMode: EditMode
+          customParameters: -nographics
           artifactsPath: artifacts/tests
           githubToken: ''
+
+      # Clear Unity 6.6's DataStore directory between separate Docker containers so the smoke build starts cleanly.
+      - name: Reset Unity DataStore between runs
+        if: steps.license.outputs.available == 'true'
+        run: sudo rm -rf UnityProject/Library/DataStore
 
       # The smoke tests are explicit, so only this category filter runs them. Each builds a real Linux player
       # of an empty scene through the whole pipeline, which the runner image supports without extra modules.
@@ -90,7 +100,7 @@ jobs:
           projectPath: UnityProject
           unityVersion: ${{ matrix.unityVersion }}
           testMode: EditMode
-          customParameters: -testCategory Build -buildTarget StandaloneLinux64
+          customParameters: -nographics -testCategory Build -buildTarget StandaloneLinux64
           artifactsPath: artifacts/builds
           githubToken: ''
 
@@ -150,7 +160,9 @@ jobs:
                   total_skipped += skipped
                   total_duration += duration
 
-                  if not result.startswith("Passed") or failed > 0 or inconclusive > 0 or passed == 0:
+                  # NUnit reports "Skipped:Ignored" when platform-gated tests call Assert.Ignore (e.g. Android module absent on Linux).
+                  is_result_ok = result.startswith("Passed") or result == "Skipped:Ignored"
+                  if not is_result_ok or failed > 0 or inconclusive > 0 or passed == 0:
                       suite_ok = False
 
                   for case in root.iter("test-case"):
