@@ -1,30 +1,21 @@
 name: Tests
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
-
-concurrency:
-  group: tests-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
 
 permissions:
   contents: read
-  checks: write
 
 jobs:
   unity:
     name: Unity ${{ matrix.unityVersion }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        # Keep in sync with the minimum version in UnityPackage/package.json and the latest supported LTS releases.
-        # Unity 6.6 is verified locally instead: GameCI's package mode always adds code coverage 1.1.1,
-        # which no longer compiles on Unity 6.6.
-        unityVersion: [2021.3.45f2, 2022.3.62f3, 6000.0.85f1]
+        # Keep in sync with the minimum version in UnityPackage/package.json and the latest supported releases.
+        unityVersion: [2021.3.45f2, 2022.3.62f3, 6000.0.85f1, 6000.6.7f1]
     env:
       UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
       UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -42,28 +33,48 @@ jobs:
             echo "::notice::Unity tests skipped. Add the UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD repository secrets to run them."
           fi
 
+      - name: Free disk space for the Unity image
+        if: steps.license.outputs.available == 'true'
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
+        with:
+          large-packages: false
+
       # Actions and the game-ci CLI are pinned to exact versions, so the code that receives the Unity secrets
       # changes only through a reviewed commit here.
       - name: Checkout
         if: steps.license.outputs.available == 'true'
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Set the Unity version of the project
+        if: steps.license.outputs.available == 'true'
+        env:
+          UNITY_VERSION: ${{ matrix.unityVersion }}
+        run: |
+          mkdir -p UnityProject/ProjectSettings UnityProject/Assets
+          printf 'm_EditorVersion: %s\n' "$UNITY_VERSION" > UnityProject/ProjectSettings/ProjectVersion.txt
+
+      - name: Restore the Library folder
+        if: steps.license.outputs.available == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: UnityProject/Library
+          key: Library-tests-${{ matrix.unityVersion }}-${{ hashFiles('UnityPackage/**', 'UnityProject/Packages/**') }}
+          restore-keys: Library-tests-${{ matrix.unityVersion }}-
+
+      # Omitting githubToken and checkName avoids GameCI's hard-coded neutral Check Runs.
+      # The XML verifier step below parses both NUnit reports and enforces a non-zero exit on any failure.
       - name: Run Edit Mode tests
         if: steps.license.outputs.available == 'true'
         uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4.4.0
-        # A "latest" cliVersion is resolved through the GitHub API, which the action authenticates only via this
-        # variable, not the githubToken input; unauthenticated calls hit the shared runner IP rate limit (403).
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GAME_CI_COVERAGE_ENABLED: false
         with:
           cliVersion: v0.1.72
-          packageMode: true
-          projectPath: UnityPackage
+          projectPath: UnityProject
           unityVersion: ${{ matrix.unityVersion }}
           testMode: EditMode
           artifactsPath: artifacts/tests
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-          checkName: Unity ${{ matrix.unityVersion }} EditMode results
 
       # The smoke tests are explicit, so only this category filter runs them. Each builds a real Linux player
       # of an empty scene through the whole pipeline, which the runner image supports without extra modules.
@@ -72,20 +83,121 @@ jobs:
         uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4.4.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GAME_CI_COVERAGE_ENABLED: false
         with:
           cliVersion: v0.1.72
-          packageMode: true
-          projectPath: UnityPackage
+          projectPath: UnityProject
           unityVersion: ${{ matrix.unityVersion }}
           testMode: EditMode
           customParameters: -testCategory Build -buildTarget StandaloneLinux64
           artifactsPath: artifacts/builds
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-          checkName: Unity ${{ matrix.unityVersion }} smoke build results
 
-      - name: Upload results
+      - name: Verify test results and write summary
         if: always() && steps.license.outputs.available == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        env:
+          UNITY_VERSION: ${{ matrix.unityVersion }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import sys
+          import xml.etree.ElementTree as ET
+
+          suites = [
+              ("Edit Mode tests", pathlib.Path("artifacts/tests")),
+              ("Smoke builds", pathlib.Path("artifacts/builds")),
+          ]
+
+          unity_version = os.environ.get("UNITY_VERSION", "unknown")
+          summary_lines = [
+              f"### Unity {unity_version}",
+              "",
+              "| Suite | Result | Passed | Failed | Skipped | Duration |",
+              "| --- | --- | ---: | ---: | ---: | ---: |",
+          ]
+          failures = []
+          has_error = False
+
+          for label, folder in suites:
+              xml_files = sorted(folder.rglob("*.xml")) if folder.exists() else []
+              if not xml_files:
+                  summary_lines.append(f"| {label} | Missing XML | 0 | 0 | 0 | - |")
+                  failures.append(f"{label}: no NUnit XML report was produced under `{folder}`.")
+                  has_error = True
+                  continue
+
+              total_passed = 0
+              total_failed = 0
+              total_inconclusive = 0
+              total_skipped = 0
+              total_duration = 0.0
+              suite_ok = True
+
+              for xml_path in xml_files:
+                  root = ET.parse(xml_path).getroot()
+                  result = root.attrib.get("result", "")
+                  passed = int(root.attrib.get("passed", "0"))
+                  failed = int(root.attrib.get("failed", "0"))
+                  inconclusive = int(root.attrib.get("inconclusive", "0"))
+                  skipped = int(root.attrib.get("skipped", "0"))
+                  duration = float(root.attrib.get("duration", "0") or 0)
+
+                  total_passed += passed
+                  total_failed += failed
+                  total_inconclusive += inconclusive
+                  total_skipped += skipped
+                  total_duration += duration
+
+                  if result != "Passed" or failed > 0 or inconclusive > 0 or passed == 0:
+                      suite_ok = False
+
+                  for case in root.iter("test-case"):
+                      if case.attrib.get("result") in ("Failed", "Inconclusive"):
+                          name = case.attrib.get("fullname") or case.attrib.get("name") or "unknown"
+                          message_el = case.find("./failure/message")
+                          message = (message_el.text or "").strip().splitlines()[0] if message_el is not None and message_el.text else "failed"
+                          failures.append(f"- `{label}` / `{name}`: {message}")
+
+              status = "Passed" if suite_ok else "Failed"
+              if not suite_ok:
+                  has_error = True
+                  if total_passed == 0 and total_failed == 0:
+                      failures.append(f"- `{label}`: zero tests passed.")
+
+              summary_lines.append(
+                  f"| {label} | {status} | {total_passed} | {total_failed} | {total_skipped} | {total_duration:.1f}s |"
+              )
+
+          if failures:
+              summary_lines.extend(["", "#### Failures", ""] + failures)
+
+          summary_text = "\n".join(summary_lines) + "\n"
+          print(summary_text)
+
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_path:
+              with open(summary_path, "a", encoding="utf-8") as fh:
+                  fh.write(summary_text)
+
+          if has_error:
+              print("::error::One or more Unity test suites failed or produced no results.")
+              sys.exit(1)
+          PY
+
+      - name: Check that the package compiles without warnings
+        if: always() && steps.license.outputs.available == 'true'
+        run: |
+          warnings=$(find artifacts -name '*.log' -print0 2>/dev/null | xargs -0 -r grep -h "warning CS" | grep -E "UnityPackage|com\.reromanlee\.autobuildpipeline" | sort -u || true)
+          if [ -n "$warnings" ]; then
+            echo "$warnings"
+            echo "::error::The package compiled with warnings."
+            exit 1
+          fi
+
+      - name: Upload test results on failure
+        if: failure() && steps.license.outputs.available == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-${{ matrix.unityVersion }}
           path: artifacts
+          retention-days: 7
