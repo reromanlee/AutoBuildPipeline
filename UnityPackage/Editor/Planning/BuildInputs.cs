@@ -27,9 +27,13 @@ namespace reromanlee.AutoBuildPipeline.Editor
         /// Root folder of all builds from the settings, before command line overrides.
         /// </summary>
         public string OutputFolder;
+        public string ReleaseFolderPattern;
+        public string PreviewFolderPattern;
+        public string PlayerNamePattern;
 
         public string PreviewLabel;
         public AndroidReleaseFormat AndroidReleaseFormat;
+        public AndroidDebugSymbols AndroidReleaseSymbols;
 
         /// <summary>
         /// Whether Development Build is checked for the active platform.
@@ -68,8 +72,12 @@ namespace reromanlee.AutoBuildPipeline.Editor
                 ApplicationIdentifier = PlayerSettings.GetApplicationIdentifier(NamedBuildTarget.FromBuildTargetGroup(BuildPipeline.GetBuildTargetGroup(platform.Target))),
                 ProjectFolder = projectFolder,
                 OutputFolder = settings.OutputFolder,
+                ReleaseFolderPattern = settings.ReleaseFolderPattern,
+                PreviewFolderPattern = settings.PreviewFolderPattern,
+                PlayerNamePattern = settings.PlayerNamePattern,
                 PreviewLabel = settings.PreviewLabel,
                 AndroidReleaseFormat = settings.AndroidReleaseFormat,
+                AndroidReleaseSymbols = settings.AndroidReleaseSymbols,
                 IsDevelopmentEnabled = EditorUserBuildSettings.development,
                 Timestamp = DateTime.Now,
                 Commit = commit

@@ -26,6 +26,8 @@ namespace reromanlee.AutoBuildPipeline.Editor
         public bool UseCustomKeystore;
         public string KeystoreName;
         public string KeyaliasName;
+        public bool HasAndroidDebugSymbols;
+        public int AndroidDebugSymbols;
 
         /// <summary>
         /// Captures the current settings of the platform and saves them to disk before anything is changed.

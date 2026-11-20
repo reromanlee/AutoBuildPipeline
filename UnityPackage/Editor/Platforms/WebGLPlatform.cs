@@ -16,9 +16,9 @@ namespace reromanlee.AutoBuildPipeline.Editor
 
         /// <inheritdoc/>
         /// <remarks>Returns the site folder, e.g. <c>Builds/WebGL/My Game-1.6.0/My Game</c>.</remarks>
-        public override string GetPlayerPath(string buildFolder, string buildName, string nameBase, bool isAppBundle)
+        public override string GetPlayerPath(string buildFolder, string buildName, string nameBase, string playerName, bool isAppBundle)
         {
-            return Path.Combine(buildFolder, nameBase);
+            return Path.Combine(buildFolder, playerName ?? nameBase);
         }
     }
 }

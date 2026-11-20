@@ -35,6 +35,25 @@ namespace reromanlee.AutoBuildPipeline.Editor
 #endif
 
         /// <summary>
+        /// Details of the automated build currently in progress, or null when no build started by
+        /// <see cref="AutoBuilder"/> is running. Safe to inspect from <c>IPreprocessBuildWithReport</c>
+        /// and <c>IPostprocessBuildWithReport</c> callbacks; always cleared when the build ends or fails.
+        /// </summary>
+        public static BuildContext CurrentBuild { get; private set; }
+
+        /// <summary>
+        /// Request of the automated build currently in progress, or null when idle.
+        /// Shortcut for <c>CurrentBuild?.Request</c>.
+        /// </summary>
+        public static BuildRequest? CurrentRequest
+        {
+            get
+            {
+                return CurrentBuild?.Request;
+            }
+        }
+
+        /// <summary>
         /// Versions, signs and builds the active platform. Every setting the build changes is restored afterwards,
         /// except the new version of a successful release, which is saved.
         /// </summary>
@@ -53,7 +72,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
             bool isUnattended = overrides.IsUnattended || Application.isBatchMode;
             BuildPlan plan = BuildPlanner.Create(platform, request, overrides, BuildInputs.Capture(platform));
 
-            if (!isUnattended && request.IsRelease && AutoBuildPipelineSettings.instance.IsReleaseConfirmationEnabled && !ConfirmRelease(plan))
+            if (!isUnattended && request.IsRelease && AutoBuildPipelineSettings.instance.IsReleaseConfirmationEnabled && !ConfirmRelease(plan, overrides))
             {
                 return null;
             }
@@ -70,6 +89,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
             bool isSucceeded = false;
             try
             {
+                CurrentBuild = new BuildContext(plan, isUnattended);
                 CreateParentFolder(plan.PlayerLocation);
                 if (!platform.TryPrepare(plan, overrides))
                 {
@@ -90,6 +110,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
             }
             finally
             {
+                CurrentBuild = null;
                 restorePoint.Restore(isVersionKept: isSucceeded && request.IsRelease);
                 AssetDatabase.SaveAssets();
                 backup.Complete(isSucceeded);
@@ -139,11 +160,21 @@ namespace reromanlee.AutoBuildPipeline.Editor
             return platform;
         }
 
-        private static bool ConfirmRelease(BuildPlan plan)
+        private static bool ConfirmRelease(BuildPlan plan, BuildOverrides overrides)
         {
             string message = plan.Request.VersionIncrement == VersionIncrement.None
                 ? $"{plan.Platform.DisplayName} release {plan.DisplayVersion}?\n\nThe version stays unchanged."
                 : $"{plan.Platform.DisplayName} release {plan.DisplayCurrentVersion} → {plan.DisplayVersion}?\n\nThe new version is saved when the build succeeds.";
+
+            bool isUnsignedAndroid = plan.Platform is AndroidPlatform &&
+                                     !PlayerSettings.Android.useCustomKeystore &&
+                                     string.IsNullOrWhiteSpace(overrides.KeystorePath);
+            if (isUnsignedAndroid)
+            {
+                message += plan.IsAppBundle
+                    ? "\n\nUnsigned (debug keystore). Google Play rejects debug-signed App Bundles."
+                    : "\n\nUnsigned (debug keystore).";
+            }
 
             return EditorUtility.DisplayDialog("Auto Build Pipeline", message, "Build", "Cancel");
         }

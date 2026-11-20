@@ -17,10 +17,14 @@ namespace reromanlee.AutoBuildPipeline.Editor
         private const float BrowseButtonWidth = 72f;
 
         private static readonly GUIContent OutputFolderLabel = new("Output Folder", "Root folder of all builds; each platform gets a subfolder. Relative paths start at the project folder.");
+        private static readonly GUIContent ReleaseFolderPatternLabel = new("Release Folder Pattern", "Folder name for releases under <Output>/<Platform>/. Must include {version}. Blank uses the default ({name}-{version}-{code}).");
+        private static readonly GUIContent PreviewFolderPatternLabel = new("Preview Folder Pattern", "Folder name for previews under <Output>/<Platform>/. Must include {label}. Blank uses the default ({name}-{label}).");
+        private static readonly GUIContent PlayerNamePatternLabel = new("Player Name Pattern", "Optional player file (or WebGL folder) name without extension. Leave blank for each platform's default.");
         private static readonly GUIContent PreviewLabelLabel = new("Preview Label", "Pre-release label of preview versions, e.g. dev in 1.6.1-dev+251025.1432.");
         private static readonly GUIContent ReleaseConfirmationLabel = new("Confirm Releases", "Asks before a release started from the editor, showing the version change.");
         private static readonly GUIContent BuildRevealLabel = new("Show Builds After Building", "Opens the build in Explorer or Finder after a build that is not launched.");
         private static readonly GUIContent AndroidReleaseFormatLabel = new("Android Release Format", "App Bundles are required by Google Play; APKs suit other stores and direct installs. Previews are always APKs.");
+        private static readonly GUIContent AndroidReleaseSymbolsLabel = new("Android Release Symbols", "Generates native debug symbols (e.g. symbols.zip) for Android releases and restores the editor setting afterwards. Previews leave the editor setting unchanged.");
 
         // The next build paths are planned once per layout pass rather than on every repaint.
         private static string _nextReleaseText;
@@ -33,7 +37,7 @@ namespace reromanlee.AutoBuildPipeline.Editor
             return new SettingsProvider(SettingsPath, SettingsScope.Project)
             {
                 label = "Auto Build Pipeline",
-                keywords = new HashSet<string> { "Build", "Release", "Preview", "Version", "Output", "Android", "App Bundle", "Keystore" },
+                keywords = new HashSet<string> { "Build", "Release", "Preview", "Version", "Output", "Pattern", "Folder", "File Name", "Android", "App Bundle", "Keystore", "Symbols", "Debug Symbols" },
                 guiHandler = DrawSettings
             };
         }
@@ -82,6 +86,26 @@ namespace reromanlee.AutoBuildPipeline.Editor
                     GUIUtility.ExitGUI();
                 }
             }
+
+            string releaseFolderPattern = EditorGUILayout.DelayedTextField(ReleaseFolderPatternLabel, settings.ReleaseFolderPattern);
+            if (releaseFolderPattern != settings.ReleaseFolderPattern)
+            {
+                settings.SetReleaseFolderPattern(releaseFolderPattern);
+            }
+
+            string previewFolderPattern = EditorGUILayout.DelayedTextField(PreviewFolderPatternLabel, settings.PreviewFolderPattern);
+            if (previewFolderPattern != settings.PreviewFolderPattern)
+            {
+                settings.SetPreviewFolderPattern(previewFolderPattern);
+            }
+
+            string playerNamePattern = EditorGUILayout.DelayedTextField(PlayerNamePatternLabel, settings.PlayerNamePattern);
+            if (playerNamePattern != settings.PlayerNamePattern)
+            {
+                settings.SetPlayerNamePattern(playerNamePattern);
+            }
+
+            EditorGUILayout.LabelField("Tokens: " + BuildNamePattern.SupportedTokensList, EditorStyles.wordWrappedMiniLabel);
 
             if (Event.current.type == EventType.Layout)
             {
@@ -142,6 +166,12 @@ namespace reromanlee.AutoBuildPipeline.Editor
             if (format != settings.AndroidReleaseFormat)
             {
                 settings.SetAndroidReleaseFormat(format);
+            }
+
+            AndroidDebugSymbols symbols = (AndroidDebugSymbols)EditorGUILayout.EnumPopup(AndroidReleaseSymbolsLabel, settings.AndroidReleaseSymbols);
+            if (symbols != settings.AndroidReleaseSymbols)
+            {
+                settings.SetAndroidReleaseSymbols(symbols);
             }
         }
 

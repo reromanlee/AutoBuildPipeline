@@ -80,3 +80,5 @@ Every successful build writes `build-info.json` next to the player, see [USAGE.m
 ```
 
 GameCI runs Unity inside a Docker container, where `GITHUB_OUTPUT` may not be available; read `build-info.json` from the build folder there.
+
+For this repository's own GitHub Actions test workflows, see [TESTING.md](TESTING.md#continuous-integration).

@@ -8,18 +8,21 @@ It is built to be safe to click. Versions, paths and passwords are resolved and 
 
 ### Features
 
-1. Build menu for the active platform
+1. Build menu and platform switcher
 2. Patch, minor, major and exact releases
 3. Previews with recognizable versions
 4. Android, WebGL, Windows, macOS, Linux
 5. Automatic version codes and build numbers
-6. Android signing from the credential vault
-7. Crash-safe restore of temporary settings
-8. Failed builds restore the previous build
-9. `build-info.json` next to every build
-10. One command line entry point for CI
-11. GameCI arguments and GitHub outputs
-12. Settings page that previews the next build
+6. Configurable folder and file name patterns
+7. Android signing from the credential vault
+8. Android native debug symbols on releases
+9. Crash-safe restore of temporary settings
+10. Failed builds restore the previous build
+11. `build-info.json` next to every build
+12. Build context for Unity build callbacks
+13. One command line entry point for CI
+14. GameCI arguments and GitHub outputs
+15. Settings page that previews the next build
 
 Detailed about features - see [USAGE.md](Documentation/USAGE.md). How Android signing works - see [SIGNING.md](Documentation/SIGNING.md). How to build in CI - see [CI.md](Documentation/CI.md). How the package is tested - see [TESTING.md](Documentation/TESTING.md).
 
@@ -31,11 +34,10 @@ Detailed about features - see [USAGE.md](Documentation/USAGE.md). How Android si
 
 ### Limitations
 
-1. Builds the active platform; switch platforms first.
+1. Builds the active platform; switch via **Build ▸ Switch Platform** or Unity's build window first.
 2. iOS and consoles are not supported yet.
 3. One version is shared by every platform.
-4. Folder and file names follow a fixed layout.
-5. Solution and Xcode project outputs must be off.
+4. Solution and Xcode project outputs must be off.
 
 ### How to install
 
@@ -67,7 +69,7 @@ Detailed about features - see [USAGE.md](Documentation/USAGE.md). How Android si
 
 The number in parentheses is the Android version code or the macOS build number; Windows, Linux and WebGL have none. Releases ask for confirmation first and are never development builds. **Build ▸ Settings…** opens **Project Settings ▸ Auto Build Pipeline**, which sets the output folder, the preview label and the Android release format, and shows where the next release and preview will go. Any menu item can be bound to a key in **Edit ▸ Shortcuts ▸ Main Menu ▸ Build**.
 
-**Android releases need a custom keystore.** Select it in **Player Settings ▸ Publishing Settings**. The first release asks for the passwords once and can remember them in Windows Credential Manager, the macOS Keychain or the Linux Secret Service keyring, so they never reach the project files.
+**Android signing and debug symbols.** When a custom keystore is selected in **Player Settings ▸ Publishing Settings**, the first release asks for the passwords once and can remember them in Windows Credential Manager, the macOS Keychain or the Linux Secret Service keyring, so they never reach the project files. Without a custom keystore, releases build with Unity's debug keystore and log a warning (Google Play still requires a custom keystore for uploaded releases). Android releases also generate public native debug symbols by default.
 
 **Build in CI with one method.** It builds the platform given by `-buildTarget`, never shows a dialog, and exits with a non-zero code when the build fails:
 

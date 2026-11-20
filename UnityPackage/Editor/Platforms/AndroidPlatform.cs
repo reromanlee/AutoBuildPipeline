@@ -92,10 +92,10 @@ namespace reromanlee.AutoBuildPipeline.Editor
         }
 
         /// <inheritdoc/>
-        /// <remarks>The package is named like its folder, e.g. <c>com.company.app-1.6.1-7/com.company.app-1.6.1-7.aab</c>.</remarks>
-        public override string GetPlayerPath(string buildFolder, string buildName, string nameBase, bool isAppBundle)
+        /// <remarks>The package defaults to its folder name, e.g. <c>com.company.app-1.6.1-7/com.company.app-1.6.1-7.aab</c>.</remarks>
+        public override string GetPlayerPath(string buildFolder, string buildName, string nameBase, string playerName, bool isAppBundle)
         {
-            return Path.Combine(buildFolder, buildName + (isAppBundle ? AppBundleExtension : PackageExtension));
+            return Path.Combine(buildFolder, (playerName ?? buildName) + (isAppBundle ? AppBundleExtension : PackageExtension));
         }
 
         /// <inheritdoc/>
@@ -106,6 +106,11 @@ namespace reromanlee.AutoBuildPipeline.Editor
             restorePoint.UseCustomKeystore = PlayerSettings.Android.useCustomKeystore;
             restorePoint.KeystoreName = PlayerSettings.Android.keystoreName;
             restorePoint.KeyaliasName = PlayerSettings.Android.keyaliasName;
+            if (AndroidDebugSymbolsUtility.TryRead(out AndroidDebugSymbols debugSymbols))
+            {
+                restorePoint.HasAndroidDebugSymbols = true;
+                restorePoint.AndroidDebugSymbols = (int)debugSymbols;
+            }
         }
 
         /// <inheritdoc/>
@@ -114,7 +119,12 @@ namespace reromanlee.AutoBuildPipeline.Editor
             // An exported Gradle project would replace the package the plan promises.
             EditorUserBuildSettings.exportAsGoogleAndroidProject = false;
             EditorUserBuildSettings.buildAppBundle = plan.IsAppBundle;
-            return AndroidSigning.TryPrepare(plan.Request.IsRelease, overrides);
+            if (plan.Request.IsRelease && !AndroidDebugSymbolsUtility.TryWrite(plan.AndroidReleaseSymbols))
+            {
+                BuildLog.Warning("Could not configure Android native debug symbols; ensure Android Build Support is installed.");
+            }
+
+            return AndroidSigning.TryPrepare(plan.Request.IsRelease, plan.IsAppBundle, overrides);
         }
 
         /// <inheritdoc/>
@@ -144,6 +154,11 @@ namespace reromanlee.AutoBuildPipeline.Editor
             if (PlayerSettings.Android.keyaliasName != restorePoint.KeyaliasName)
             {
                 PlayerSettings.Android.keyaliasName = restorePoint.KeyaliasName;
+            }
+
+            if (restorePoint.HasAndroidDebugSymbols)
+            {
+                AndroidDebugSymbolsUtility.TryWrite((AndroidDebugSymbols)restorePoint.AndroidDebugSymbols);
             }
         }
     }

@@ -12,7 +12,7 @@ AutoBuildPipeline builds the active platform the way Unity's Build and Build And
 | macOS | `.app` | Build number (`CFBundleVersion`), incremented by releases | Starts the player |
 | Linux | `.x86_64` with its data folder | None | Starts the player |
 
-Other platforms show the build items disabled. Builds use the platform that is active in the **Build Settings** window (Unity 2021.3 and 2022.3) or the **Build Profiles** window (Unity 6), including a custom build profile with its own scenes and scripting defines.
+Other platforms show the build items disabled. Builds use the platform that is active in the **Build Settings** window (Unity 2021.3 and 2022.3) or the **Build Profiles** window (Unity 6), including a custom build profile with its own scenes and scripting defines. Use **Build ▸ Switch Platform** to switch between Android, WebGL, Windows, macOS and Linux directly from the menu; targets whose Build Support module is not installed are disabled, and switching asks for confirmation first.
 
 ### Versions
 
@@ -50,11 +50,12 @@ Builds/
    └─ My Game-1.6.4/     (My Game.x86_64, My Game_Data/, …, build-info.json)
 ```
 
-1. Android builds are named after the application identifier, every other platform after the product name. Characters that are invalid in file names on any system are removed.
-2. Release folders carry the version and, where the platform has one, the build number. Previews reuse one `…-dev` folder, so they never pile up.
-3. A build replaces its folder as a whole: the previous folder is moved aside to `….previous`, deleted when the new build succeeds, and put back when it fails or is cancelled. Close a running player before rebuilding into its folder.
-4. The WebGL site sits in a folder of its own, so `build-info.json` is not published with it.
-5. **Build ▸ Open Builds Folder** opens the active platform's folder.
+1. Android builds default to the application identifier, every other platform to the product name. Characters that are invalid in file names on any system and Windows reserved names are sanitized.
+2. Folder and player names can be customized in **Project Settings ▸ Auto Build Pipeline** using tokens: `{name}` (platform default), `{product}`, `{identifier}`, `{version}`, `{code}`, `{platform}`, `{label}`, `{date}` (`yyyy-MM-dd`) and `{time}` (`HHmm`). Empty optional tokens such as `{code}` on Windows trim their adjacent separator cleanly.
+3. Release folder patterns must include `{version}` so releases never share a folder; preview folder patterns must include `{label}` and cannot resolve to the same folder as a release. Path separators (`/`, `\`) and `..` are rejected so each build owns a single folder.
+4. A build replaces its folder as a whole: the previous folder is moved aside to `….previous`, deleted when the new build succeeds, and put back when it fails or is cancelled. Close a running player before rebuilding into its folder.
+5. The WebGL site sits in a folder of its own, so `build-info.json` is not published with it.
+6. **Build ▸ Open Builds Folder** opens the active platform's folder.
 
 ### build-info.json
 
@@ -86,16 +87,20 @@ Every successful build gets a `build-info.json` next to the player:
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | Output Folder | `Builds` | Root folder of all builds. Relative paths start at the project folder, e.g. `../Builds` for a folder next to it. |
+| Release Folder Pattern | `{name}-{version}-{code}` | Single-segment folder name under `<Output>/<Platform>/` for releases; must include `{version}`. |
+| Preview Folder Pattern | `{name}-{label}` | Single-segment folder name under `<Output>/<Platform>/` for previews; must include `{label}`. |
+| Player Name Pattern | *(blank)* | Optional player file (or WebGL folder) name without extension. Blank keeps each platform's default. |
 | Preview Label | `dev` | Pre-release label of previews: letters, digits, hyphens and dots, e.g. `beta.2`. |
 | Confirm Releases | On | Asks before a release started from the editor, e.g. "Android release 1.6.3 (7) → 1.6.4 (8)?". |
 | Show Builds After Building | On | Opens a build that is not launched in Explorer or Finder. |
 | Android Release Format | App Bundle | App Bundles are required by Google Play; APKs suit other stores and direct installs. Previews are always APKs, which install faster. |
+| Android Release Symbols | Public | Native debug symbols (`Off`, `Public` or `Debugging`) applied during Android releases and restored afterwards. Previews leave the editor setting unchanged. |
 
-The page also shows the version and path of the next release and preview of the active platform, or the reason a build would fail, e.g. a version that is not `major.minor.patch`.
+The page also shows the version and path of the next release and preview of the active platform, or the reason a build would fail, e.g. a version that is not `major.minor.patch` or an invalid name pattern.
 
 ### What a build changes temporarily
 
-Before anything changes, the build saves a restore point to `Library/AutoBuildPipeline/RestorePoint.json`. It covers the version, the build number, the Development Build checkbox and, on Android, the App Bundle and Export Project checkboxes and the keystore selection. After the build, everything is put back, except the new version of a successful release. If the editor crashes or is killed mid-build, the next editor start restores the settings and logs a warning.
+Before anything changes, the build saves a restore point to `Library/AutoBuildPipeline/RestorePoint.json`. It covers the version, the build number, the Development Build checkbox and, on Android, the App Bundle and Export Project checkboxes, the native debug symbols level and the keystore selection. After the build, everything is put back, except the new version of a successful release. If the editor crashes or is killed mid-build, the next editor start restores the settings and logs a warning.
 
 Android's **Export Project** is turned off for the build, so a package is always produced. The Windows **Create Visual Studio Solution** and macOS **Create Xcode Project** options are not changed and must be off.
 
@@ -117,12 +122,35 @@ public static class ReleaseTools
 }
 ```
 
-`AutoBuildPipelineSettings.instance` reads the settings, and `ApplicationVersion` parses and increments versions.
+Inside Unity build callbacks (`IPreprocessBuildWithReport`, `IPostprocessBuildWithReport`), read `AutoBuilder.CurrentBuild` (`BuildContext`, null outside an automated build) or `AutoBuilder.CurrentRequest` (`BuildRequest?`) to distinguish automated releases from previews or manual builds and read the resolved `VersionName`, `BuildNumber`, `BuildFolder` and `PlayerLocation`:
+
+```csharp
+using reromanlee.AutoBuildPipeline.Editor;
+using UnityEditor.Build;
+using UnityEditor.Build.Reporting;
+
+public sealed class ReleaseStamp : IPreprocessBuildWithReport
+{
+    public int callbackOrder => 0;
+
+    public void OnPreprocessBuild(BuildReport report)
+    {
+        BuildContext build = AutoBuilder.CurrentBuild;
+        if (build == null || !build.IsRelease)
+        {
+            return;
+        }
+
+        // Stamp files or prepare release artifacts using build.VersionName and build.BuildFolder.
+    }
+}
+```
+
+Both properties are cleared in a `finally` block even when a build fails, throws or is cancelled. `AutoBuildPipelineSettings.instance` reads the settings, and `ApplicationVersion` parses and increments versions.
 
 ### Troubleshooting
 
 1. **"The version '…' in Player Settings is not in the 'major.minor.patch' format."** Set Player Settings ▸ Version to a version such as `1.0.0`.
-2. **"The active platform … is not supported."** Switch to Android, WebGL or a Standalone platform in the build window.
+2. **"The active platform … is not supported."** Switch to Android, WebGL or a Standalone platform via **Build ▸ Switch Platform** or Unity's build window.
 3. **"Could not replace '…'."** A file in the build folder is in use, usually by a running player; close it and build again.
-4. **"Android releases must be signed with a custom keystore."** Select a keystore in Player Settings ▸ Publishing Settings, see [SIGNING.md](SIGNING.md).
-5. **The build menu items are disabled.** A build is running, scripts are compiling, the editor is in Play Mode, or the active platform is not supported.
+4. **The build menu items are disabled.** A build is running, scripts are compiling, the editor is in Play Mode, or the active platform is not supported.

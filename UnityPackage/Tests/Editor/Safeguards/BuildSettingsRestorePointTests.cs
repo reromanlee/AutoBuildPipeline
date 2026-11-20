@@ -10,6 +10,8 @@ namespace reromanlee.AutoBuildPipeline.Editor.Tests
         private bool _isDevelopment;
         private bool _isAppBundle;
         private string _keystoreName;
+        private bool _hasDebugSymbols;
+        private AndroidDebugSymbols _debugSymbols;
 
         [SetUp]
         public void RememberSettings()
@@ -19,6 +21,7 @@ namespace reromanlee.AutoBuildPipeline.Editor.Tests
             _isDevelopment = EditorUserBuildSettings.development;
             _isAppBundle = EditorUserBuildSettings.buildAppBundle;
             _keystoreName = PlayerSettings.Android.keystoreName;
+            _hasDebugSymbols = AndroidDebugSymbolsUtility.TryRead(out _debugSymbols);
         }
 
         [TearDown]
@@ -29,6 +32,10 @@ namespace reromanlee.AutoBuildPipeline.Editor.Tests
             EditorUserBuildSettings.development = _isDevelopment;
             EditorUserBuildSettings.buildAppBundle = _isAppBundle;
             PlayerSettings.Android.keystoreName = _keystoreName;
+            if (_hasDebugSymbols)
+            {
+                AndroidDebugSymbolsUtility.TryWrite(_debugSymbols);
+            }
         }
 
         [Test]
@@ -47,6 +54,11 @@ namespace reromanlee.AutoBuildPipeline.Editor.Tests
             Assert.That(EditorUserBuildSettings.development, Is.False);
             Assert.That(EditorUserBuildSettings.buildAppBundle, Is.False);
             Assert.That(PlayerSettings.Android.keystoreName, Is.EqualTo("../app.keystore"));
+            if (_hasDebugSymbols)
+            {
+                Assert.That(AndroidDebugSymbolsUtility.TryRead(out AndroidDebugSymbols restoredSymbols), Is.True);
+                Assert.That(restoredSymbols, Is.EqualTo(AndroidDebugSymbols.Off));
+            }
         }
 
         [Test]
@@ -63,6 +75,26 @@ namespace reromanlee.AutoBuildPipeline.Editor.Tests
             Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(8));
             Assert.That(EditorUserBuildSettings.buildAppBundle, Is.False);
             Assert.That(PlayerSettings.Android.keystoreName, Is.EqualTo("../app.keystore"));
+            if (_hasDebugSymbols)
+            {
+                Assert.That(AndroidDebugSymbolsUtility.TryRead(out AndroidDebugSymbols restoredSymbols), Is.True);
+                Assert.That(restoredSymbols, Is.EqualTo(AndroidDebugSymbols.Off));
+            }
+        }
+
+        [TestCase(AndroidDebugSymbols.Off)]
+        [TestCase(AndroidDebugSymbols.Public)]
+        [TestCase(AndroidDebugSymbols.Debugging)]
+        public void AndroidDebugSymbolsRoundTrip(AndroidDebugSymbols level)
+        {
+            if (!_hasDebugSymbols)
+            {
+                Assert.Ignore("Android Build Support is not installed in this editor.");
+            }
+
+            Assert.That(AndroidDebugSymbolsUtility.TryWrite(level), Is.True);
+            Assert.That(AndroidDebugSymbolsUtility.TryRead(out AndroidDebugSymbols actual), Is.True);
+            Assert.That(actual, Is.EqualTo(level));
         }
 
         private static void ApplyProjectState()
@@ -72,6 +104,7 @@ namespace reromanlee.AutoBuildPipeline.Editor.Tests
             EditorUserBuildSettings.development = false;
             EditorUserBuildSettings.buildAppBundle = false;
             PlayerSettings.Android.keystoreName = "../app.keystore";
+            AndroidDebugSymbolsUtility.TryWrite(AndroidDebugSymbols.Off);
         }
 
         private static void ApplyBuildState()
@@ -81,6 +114,7 @@ namespace reromanlee.AutoBuildPipeline.Editor.Tests
             EditorUserBuildSettings.development = true;
             EditorUserBuildSettings.buildAppBundle = true;
             PlayerSettings.Android.keystoreName = "C:/Keys/app.keystore";
+            AndroidDebugSymbolsUtility.TryWrite(AndroidDebugSymbols.Public);
         }
 
         private static BuildPlatform GetAndroid()

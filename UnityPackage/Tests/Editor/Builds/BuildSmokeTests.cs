@@ -2,6 +2,7 @@ using NUnit.Framework;
 using System;
 using System.IO;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -109,10 +110,19 @@ namespace reromanlee.AutoBuildPipeline.Editor.Tests
         [Test]
         public void PatchReleaseSavesNewVersion()
         {
+            BuildCallbackObserver.Reset();
             BuildReport report = AutoBuilder.Build(BuildRequest.PatchRelease, CreateOverrides());
 
             Assert.That(report.summary.result, Is.EqualTo(BuildResult.Succeeded));
             Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("1.2.4"));
+            Assert.That(AutoBuilder.CurrentBuild, Is.Null);
+            Assert.That(AutoBuilder.CurrentRequest, Is.Null);
+            Assert.That(BuildCallbackObserver.PreprocessBuild, Is.Not.Null);
+            Assert.That(BuildCallbackObserver.PreprocessBuild.IsRelease, Is.True);
+            Assert.That(BuildCallbackObserver.PreprocessBuild.VersionName, Is.EqualTo("1.2.4"));
+            Assert.That(BuildCallbackObserver.PreprocessRequest.HasValue, Is.True);
+            Assert.That(BuildCallbackObserver.PreprocessRequest.Value.VersionIncrement, Is.EqualTo(VersionIncrement.Patch));
+            Assert.That(BuildCallbackObserver.PostprocessBuild, Is.SameAs(BuildCallbackObserver.PreprocessBuild));
             AssertBuildExists(report, "-1.2.4", expectedVersionPrefix: "1.2.4");
         }
 
@@ -174,6 +184,39 @@ namespace reromanlee.AutoBuildPipeline.Editor.Tests
                 {
                     return BuildTarget.StandaloneWindows64;
                 }
+            }
+        }
+
+        internal sealed class BuildCallbackObserver : IPreprocessBuildWithReport, IPostprocessBuildWithReport
+        {
+            public static BuildContext PreprocessBuild { get; private set; }
+            public static BuildRequest? PreprocessRequest { get; private set; }
+            public static BuildContext PostprocessBuild { get; private set; }
+
+            public int callbackOrder
+            {
+                get
+                {
+                    return 0;
+                }
+            }
+
+            public static void Reset()
+            {
+                PreprocessBuild = null;
+                PreprocessRequest = null;
+                PostprocessBuild = null;
+            }
+
+            public void OnPreprocessBuild(BuildReport report)
+            {
+                PreprocessBuild = AutoBuilder.CurrentBuild;
+                PreprocessRequest = AutoBuilder.CurrentRequest;
+            }
+
+            public void OnPostprocessBuild(BuildReport report)
+            {
+                PostprocessBuild = AutoBuilder.CurrentBuild;
             }
         }
     }

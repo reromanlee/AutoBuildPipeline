@@ -116,8 +116,9 @@ namespace reromanlee.AutoBuildPipeline.Editor
         /// <param name="buildFolder">Folder that holds this build and its build-info.json.</param>
         /// <param name="buildName">Name of the build folder, e.g. <c>My Game-1.6.0</c>.</param>
         /// <param name="nameBase">Result of <see cref="GetNameBase"/>.</param>
+        /// <param name="playerName">Optional player file or WebGL folder name override without extension, or null for the platform default.</param>
         /// <param name="isAppBundle">Whether an Android App Bundle is built.</param>
-        public abstract string GetPlayerPath(string buildFolder, string buildName, string nameBase, bool isAppBundle);
+        public abstract string GetPlayerPath(string buildFolder, string buildName, string nameBase, string playerName, bool isAppBundle);
 
         /// <summary>
         /// Captures platform settings the build may change, before anything changes.

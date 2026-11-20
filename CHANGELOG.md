@@ -1,3 +1,17 @@
+# AutoBuildPipeline (Unreleased)
+
+### What's new
+
+1. Configurable release folder, preview folder and player file name patterns in Project Settings with tokens (`{name}`, `{product}`, `{identifier}`, `{version}`, `{code}`, `{platform}`, `{label}`, `{date}`, `{time}`), cross-platform sanitization and collision checks.
+2. Configurable Android native debug symbols for releases (`Off`, `Public` or `Debugging`, defaulting to `Public`) across Unity 2021.3, 2022.3 and Unity 6, with crash-safe restore afterwards.
+3. `AutoBuilder.CurrentBuild` (`BuildContext`) and `AutoBuilder.CurrentRequest` so Unity build callbacks (`IPreprocessBuildWithReport`, `IPostprocessBuildWithReport`) can inspect the active build, version, build number and output folder.
+4. **Build ▸ Switch Platform** submenu for Android, WebGL, Windows, macOS and Linux with active-platform checkmarks, installed-module checks and confirmation before switching.
+5. GitHub Actions CI upgraded with a dedicated test project covering Unity 2021.3, 2022.3, 6000.0 and 6000.6, clean pass/fail check reporting with step summaries, C# warning checks, tree-SHA gating and nightly cache/artifact cleanup.
+
+### Bugfixes
+
+1. Android release builds (`.apk` and `.aab`) now build with Unity's debug keystore when Custom Keystore is disabled in Player Settings, logging a warning (and noting Google Play rejects debug-signed App Bundles) instead of blocking projects without a keystore.
+
 # AutoBuildPipeline 1.0.0
 
 ### What's new

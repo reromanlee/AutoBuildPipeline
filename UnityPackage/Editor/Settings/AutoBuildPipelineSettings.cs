@@ -16,8 +16,27 @@ namespace reromanlee.AutoBuildPipeline.Editor
         /// </summary>
         public const string DefaultOutputFolder = "Builds";
 
+        /// <summary>
+        /// Default pattern for release build folders.
+        /// </summary>
+        public const string DefaultReleaseFolderPattern = BuildNamePattern.DefaultReleaseFolderPattern;
+
+        /// <summary>
+        /// Default pattern for preview build folders.
+        /// </summary>
+        public const string DefaultPreviewFolderPattern = BuildNamePattern.DefaultPreviewFolderPattern;
+
         [SerializeField]
         private string _outputFolder = DefaultOutputFolder;
+
+        [SerializeField]
+        private string _releaseFolderPattern = DefaultReleaseFolderPattern;
+
+        [SerializeField]
+        private string _previewFolderPattern = DefaultPreviewFolderPattern;
+
+        [SerializeField]
+        private string _playerNamePattern = string.Empty;
 
         [SerializeField]
         private string _previewLabel = PreviewVersion.DefaultLabel;
@@ -31,6 +50,9 @@ namespace reromanlee.AutoBuildPipeline.Editor
         [SerializeField]
         private AndroidReleaseFormat _androidReleaseFormat = AndroidReleaseFormat.AppBundle;
 
+        [SerializeField]
+        private AndroidDebugSymbols _androidReleaseSymbols = AndroidDebugSymbols.Public;
+
         /// <summary>
         /// Root folder of all builds; each platform gets a subfolder, e.g. <c>Builds/Android</c>.
         /// Relative paths start at the project folder. Returns <see cref="DefaultOutputFolder"/> when blank.
@@ -40,6 +62,42 @@ namespace reromanlee.AutoBuildPipeline.Editor
             get
             {
                 return string.IsNullOrWhiteSpace(_outputFolder) ? DefaultOutputFolder : _outputFolder.Trim();
+            }
+        }
+
+        /// <summary>
+        /// Folder name pattern for release builds under <c>&lt;OutputFolder&gt;/&lt;Platform&gt;/</c>.
+        /// Must include <c>{version}</c>. Returns <see cref="DefaultReleaseFolderPattern"/> when blank.
+        /// </summary>
+        public string ReleaseFolderPattern
+        {
+            get
+            {
+                return string.IsNullOrWhiteSpace(_releaseFolderPattern) ? DefaultReleaseFolderPattern : _releaseFolderPattern.Trim();
+            }
+        }
+
+        /// <summary>
+        /// Folder name pattern for preview builds under <c>&lt;OutputFolder&gt;/&lt;Platform&gt;/</c>.
+        /// Must include <c>{label}</c>. Returns <see cref="DefaultPreviewFolderPattern"/> when blank.
+        /// </summary>
+        public string PreviewFolderPattern
+        {
+            get
+            {
+                return string.IsNullOrWhiteSpace(_previewFolderPattern) ? DefaultPreviewFolderPattern : _previewFolderPattern.Trim();
+            }
+        }
+
+        /// <summary>
+        /// Optional player file (or WebGL folder) name pattern without extension.
+        /// Empty uses each platform's default (the build folder name on Android, the product name elsewhere).
+        /// </summary>
+        public string PlayerNamePattern
+        {
+            get
+            {
+                return string.IsNullOrWhiteSpace(_playerNamePattern) ? string.Empty : _playerNamePattern.Trim();
             }
         }
 
@@ -89,9 +147,38 @@ namespace reromanlee.AutoBuildPipeline.Editor
             }
         }
 
+        /// <summary>
+        /// Native debug symbols level applied during Android release builds and restored afterwards.
+        /// </summary>
+        public AndroidDebugSymbols AndroidReleaseSymbols
+        {
+            get
+            {
+                return _androidReleaseSymbols;
+            }
+        }
+
         internal void SetOutputFolder(string outputFolder)
         {
             _outputFolder = outputFolder;
+            Save(true);
+        }
+
+        internal void SetReleaseFolderPattern(string pattern)
+        {
+            _releaseFolderPattern = pattern;
+            Save(true);
+        }
+
+        internal void SetPreviewFolderPattern(string pattern)
+        {
+            _previewFolderPattern = pattern;
+            Save(true);
+        }
+
+        internal void SetPlayerNamePattern(string pattern)
+        {
+            _playerNamePattern = pattern;
             Save(true);
         }
 
@@ -116,6 +203,12 @@ namespace reromanlee.AutoBuildPipeline.Editor
         internal void SetAndroidReleaseFormat(AndroidReleaseFormat format)
         {
             _androidReleaseFormat = format;
+            Save(true);
+        }
+
+        internal void SetAndroidReleaseSymbols(AndroidDebugSymbols symbols)
+        {
+            _androidReleaseSymbols = symbols;
             Save(true);
         }
     }
